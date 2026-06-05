@@ -144,12 +144,16 @@ exports.sendRegisterOtp = async (req, res) => {
     );
 
     // Gửi email OTP
-    await transporter.sendMail({
-      from: `"MobileStore" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: `[MobileStore] Mã OTP xác thực đăng ký: ${otp}`,
-      html: otpEmailTemplate(otp, full_name, 'register'),
-    });
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      await transporter.sendMail({
+        from: `"MobileStore" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: `[MobileStore] Mã OTP xác thực đăng ký: ${otp}`,
+        html: otpEmailTemplate(otp, full_name, 'register'),
+      });
+    } else {
+      console.log(`\n[ DEV MODE ] OTP Đăng ký cho ${email} là: ${otp}\n`);
+    }
 
     res.json({ success: true, message: 'Mã OTP đã được gửi đến email của bạn.' });
   } catch (error) {
@@ -253,12 +257,16 @@ exports.forgotPassword = async (req, res) => {
     );
 
     // Gửi email
-    await transporter.sendMail({
-      from: `"MobileStore" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: `[MobileStore] Mã OTP đặt lại mật khẩu: ${otp}`,
-      html: otpEmailTemplate(otp, user.full_name),
-    });
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      await transporter.sendMail({
+        from: `"MobileStore" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: `[MobileStore] Mã OTP đặt lại mật khẩu: ${otp}`,
+        html: otpEmailTemplate(otp, user.full_name),
+      });
+    } else {
+      console.log(`\n[ DEV MODE ] OTP Đặt lại mật khẩu cho ${email} là: ${otp}\n`);
+    }
 
     res.json({ success: true, message: 'Mã OTP đã được gửi đến email của bạn.' });
   } catch (error) {

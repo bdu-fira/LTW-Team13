@@ -16,6 +16,7 @@ import Wishlist from './pages/Wishlist';
 import AddressBook from './pages/AddressBook';
 import Admin from './pages/Admin';
 import Staff from './pages/Staff';
+import AIChat from './components/AIChat';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/admin" element={<Admin />} />
           <Route path="/staff" element={<Staff />} />
         </Routes>
+        <AIChat />
       </AuthProvider>
     </BrowserRouter>
   );

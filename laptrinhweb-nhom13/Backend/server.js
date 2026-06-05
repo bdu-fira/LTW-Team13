@@ -15,6 +15,7 @@ const reviewWishlistRoutes = require('./src/routes/reviewWishlistRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
 const emailRoutes = require('./src/routes/emailRoutes');
 const oauthRoutes = require('./src/routes/oauthRoutes');
+const voucherRoutes = require('./src/routes/voucherRoutes');
 
 // Import middleware
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
@@ -35,6 +36,10 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
+    // Allow all local ports for dev
+    if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') || origin.startsWith('http://192.168.')) {
+      return callback(null, true);
+    }
     if (allowedOrigins.includes(origin)) return callback(null, true);
     callback(new Error('Not allowed by CORS'));
   },
@@ -78,6 +83,7 @@ app.use('/api', reviewWishlistRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/oauth', oauthRoutes);
+app.use('/api/vouchers', voucherRoutes);
 
 // ============================================
 // Error Handling

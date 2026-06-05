@@ -50,8 +50,19 @@ interface User {
 
 interface Category { category_id: number; category_name: string; }
 interface Brand { brand_id: number; brand_name: string; }
+interface Voucher {
+  voucher_id: number;
+  code: string;
+  discount_percent: number;
+  max_discount_amount?: number;
+  min_order_value?: number;
+  usage_limit: number;
+  used_count: number;
+  expiration_date?: string;
+  is_active: number;
+}
 
-type Tab = 'dashboard' | 'products' | 'orders' | 'users' | 'categories' | 'brands' | 'accounts';
+type Tab = 'dashboard' | 'products' | 'orders' | 'users' | 'categories' | 'brands' | 'accounts' | 'vouchers';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
@@ -208,6 +219,12 @@ export default function Admin() {
   const [editBrand, setEditBrand] = useState<Brand | null>(null);
   const [brandSaving, setBrandSaving] = useState(false);
 
+  // Vouchers
+  const [voucherList, setVoucherList] = useState<Voucher[]>([]);
+  const [voucherForm, setVoucherForm] = useState({ code: '', discount_percent: 0, max_discount_amount: '', min_order_value: '', usage_limit: 100, is_active: 1, expiration_date: '' });
+  const [editVoucher, setEditVoucher] = useState<Voucher | null>(null);
+  const [voucherSaving, setVoucherSaving] = useState(false);
+
   // Accounts management
   const [myPwForm, setMyPwForm] = useState({ current_password: '', new_password: '', confirm_password: '' });
   const [myPwSaving, setMyPwSaving] = useState(false);
@@ -310,12 +327,18 @@ export default function Admin() {
     if (r.data) setBrandList(r.data);
   }, []);
 
+  const loadVouchers = useCallback(async () => {
+    const r = await api.get<any>('/admin/vouchers');
+    if (r.data) setVoucherList(r.data);
+  }, []);
+
   useEffect(() => { if (tab === 'dashboard') loadDashboard(); }, [tab, loadDashboard]);
   useEffect(() => { if (tab === 'products') loadProducts(); }, [tab, loadProducts]);
   useEffect(() => { if (tab === 'orders') loadOrders(); }, [tab, loadOrders]);
   useEffect(() => { if (tab === 'users' || tab === 'accounts') loadUsers(); }, [tab, loadUsers]);
   useEffect(() => { if (tab === 'categories') loadCategories(); }, [tab, loadCategories]);
   useEffect(() => { if (tab === 'brands') loadBrands(); }, [tab, loadBrands]);
+  useEffect(() => { if (tab === 'vouchers') loadVouchers(); }, [tab, loadVouchers]);
 
   // Category CRUD
   const saveCat = async () => {
@@ -367,6 +390,32 @@ export default function Admin() {
     await api.delete(`/brands/${id}`);
     showToast('Đã xóa thương hiệu!');
     loadBrands();
+  };
+
+  // Voucher CRUD
+  const saveVoucher = async () => {
+    if (!voucherForm.code.trim() || !voucherForm.discount_percent) return;
+    setVoucherSaving(true);
+    try {
+      if (editVoucher) {
+        await api.put(`/admin/vouchers/${editVoucher.voucher_id}`, voucherForm);
+        showToast('Cập nhật voucher thành công!');
+      } else {
+        await api.post('/admin/vouchers', voucherForm);
+        showToast('Thêm voucher thành công!');
+      }
+      setVoucherForm({ code: '', discount_percent: 0, max_discount_amount: '', min_order_value: '', usage_limit: 100, is_active: 1, expiration_date: '' });
+      setEditVoucher(null);
+      loadVouchers();
+    } catch (e: any) { alert(e.message); }
+    finally { setVoucherSaving(false); }
+  };
+
+  const deleteVoucher = async (id: number) => {
+    if (!confirm('Xóa mã giảm giá này?')) return;
+    await api.delete(`/admin/vouchers/${id}`);
+    showToast('Đã xóa mã!');
+    loadVouchers();
   };
 
   const deleteProduct = async (id: number) => {
@@ -451,6 +500,7 @@ export default function Admin() {
             { key: 'users', icon: '👥', label: 'Người dùng' },
             { key: 'categories', icon: '🏷️', label: 'Danh mục' },
             { key: 'brands', icon: '🏢', label: 'Thương hiệu' },
+            { key: 'vouchers', icon: '🎫', label: 'Mã giảm giá' },
             { key: 'accounts', icon: '🔑', label: 'Tài khoản' },
           ] as { key: Tab; icon: string; label: string }[]).map(item => (
             <button
@@ -922,6 +972,93 @@ export default function Admin() {
                   {brandList.length === 0 && (
                     <tr><td colSpan={3} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>Chưa có thương hiệu nào</td></tr>
                   )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── VOUCHERS ── */}
+        {tab === 'vouchers' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 400px) 1fr', gap: 24, alignItems: 'start' }}>
+            <div style={styles.dashCard}>
+              <h3 style={styles.cardTitle}>{editVoucher ? '✏️ Sửa mã giảm giá' : '➕ Thêm mã mới'}</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ ...styles.label, marginBottom: 4 }}>Mã Code (Ví dụ: SALE10) *</label>
+                  <input value={voucherForm.code} onChange={e => setVoucherForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} style={styles.input} />
+                </div>
+                <div>
+                  <label style={{ ...styles.label, marginBottom: 4 }}>% Giảm giá *</label>
+                  <input type="number" value={voucherForm.discount_percent} onChange={e => setVoucherForm(f => ({ ...f, discount_percent: Number(e.target.value) }))} style={styles.input} />
+                </div>
+                <div>
+                  <label style={{ ...styles.label, marginBottom: 4 }}>Giảm tối đa (₫)</label>
+                  <input type="number" value={voucherForm.max_discount_amount} onChange={e => setVoucherForm(f => ({ ...f, max_discount_amount: e.target.value }))} placeholder="Không giới hạn" style={styles.input} />
+                </div>
+                <div>
+                  <label style={{ ...styles.label, marginBottom: 4 }}>Đơn tối thiểu (₫)</label>
+                  <input type="number" value={voucherForm.min_order_value} onChange={e => setVoucherForm(f => ({ ...f, min_order_value: e.target.value }))} style={styles.input} />
+                </div>
+                <div>
+                  <label style={{ ...styles.label, marginBottom: 4 }}>Số lượng mã</label>
+                  <input type="number" value={voucherForm.usage_limit} onChange={e => setVoucherForm(f => ({ ...f, usage_limit: Number(e.target.value) }))} style={styles.input} />
+                </div>
+                <div>
+                  <label style={{ ...styles.label, marginBottom: 4 }}>Hạn sử dụng</label>
+                  <input type="datetime-local" value={voucherForm.expiration_date} onChange={e => setVoucherForm(f => ({ ...f, expiration_date: e.target.value }))} style={styles.input} />
+                </div>
+                {editVoucher && (
+                  <div>
+                    <label style={{ ...styles.label, marginBottom: 4 }}>Trạng thái</label>
+                    <select value={voucherForm.is_active} onChange={e => setVoucherForm(f => ({ ...f, is_active: Number(e.target.value) }))} style={styles.input}>
+                      <option value={1}>Hoạt động</option>
+                      <option value={0}>Tạm dừng</option>
+                    </select>
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button onClick={saveVoucher} disabled={voucherSaving} style={styles.btnPrimary}>
+                    {voucherSaving ? 'Đang lưu...' : editVoucher ? 'Cập nhật' : 'Thêm mới'}
+                  </button>
+                  {editVoucher && (
+                    <button onClick={() => { setEditVoucher(null); setVoucherForm({ code: '', discount_percent: 0, max_discount_amount: '', min_order_value: '', usage_limit: 100, is_active: 1, expiration_date: '' }); }} style={styles.btnSecondary}>Hủy</button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={styles.tableWrap}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Mã</th>
+                    <th style={styles.th}>Giảm giá</th>
+                    <th style={styles.th}>Điều kiện</th>
+                    <th style={styles.th}>Đã dùng</th>
+                    <th style={styles.th}>Hạn sử dụng</th>
+                    <th style={styles.th}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {voucherList.map(v => (
+                    <tr key={v.voucher_id} style={styles.tr}>
+                      <td style={{ ...styles.td, fontWeight: 700, color: '#f59e0b' }}>{v.code}</td>
+                      <td style={styles.td}>
+                        <div style={{ color: '#10b981', fontWeight: 600 }}>{v.discount_percent}%</div>
+                        {v.max_discount_amount && <div style={{ fontSize: 11, color: '#94a3b8' }}>Tối đa {fmt(v.max_discount_amount)}</div>}
+                      </td>
+                      <td style={styles.td}>Đơn từ {fmt(v.min_order_value || 0)}</td>
+                      <td style={styles.td}>{v.used_count} / {v.usage_limit}</td>
+                      <td style={styles.td}>{v.expiration_date ? new Date(v.expiration_date).toLocaleDateString('vi-VN') : 'Không hạn'}</td>
+                      <td style={styles.td}>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => { setEditVoucher(v); setVoucherForm({ code: v.code, discount_percent: v.discount_percent, max_discount_amount: String(v.max_discount_amount||''), min_order_value: String(v.min_order_value||''), usage_limit: v.usage_limit, is_active: v.is_active, expiration_date: v.expiration_date ? v.expiration_date.slice(0, 16) : '' }); }} style={styles.btnEdit}>Sửa</button>
+                          <button onClick={() => deleteVoucher(v.voucher_id)} style={styles.btnDanger}>Xóa</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {voucherList.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>Chưa có mã giảm giá nào</td></tr>}
                 </tbody>
               </table>
             </div>
